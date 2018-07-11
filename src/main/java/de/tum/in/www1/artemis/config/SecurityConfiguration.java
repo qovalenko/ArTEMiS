@@ -136,6 +136,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .antMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
             .antMatchers("/v2/api-docs/**").permitAll()
         .and()
+            .requiresChannel().anyRequest().requiresSecure()
+        .and()
+            .portMapper().http(80).mapsTo(443)
+        .and()
             .apply(securityConfigurerAdapter());
 
     }
