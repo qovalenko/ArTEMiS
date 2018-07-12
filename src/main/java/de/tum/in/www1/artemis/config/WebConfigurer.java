@@ -7,12 +7,18 @@ import io.github.jhipster.config.JHipsterConstants;
 import io.github.jhipster.config.JHipsterProperties;
 import io.github.jhipster.web.filter.CachingHttpHeadersFilter;
 import io.undertow.UndertowOptions;
+import io.undertow.servlet.api.SecurityConstraint;
+import io.undertow.servlet.api.SecurityInfo;
+import io.undertow.servlet.api.TransportGuaranteeType;
+import io.undertow.servlet.api.WebResourceCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.embedded.ConfigurableEmbeddedServletContainer;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerCustomizer;
+import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory;
 import org.springframework.boot.context.embedded.MimeMappings;
+import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
 import org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainerFactory;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.annotation.Bean;
@@ -85,9 +91,21 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
         if (jHipsterProperties.getHttp().getVersion().equals(JHipsterProperties.Http.Version.V_2_0) &&
             container instanceof UndertowEmbeddedServletContainerFactory) {
 
-            ((UndertowEmbeddedServletContainerFactory) container)
-                .addBuilderCustomizers(builder ->
-                    builder.setServerOption(UndertowOptions.ENABLE_HTTP2, true));
+            UndertowEmbeddedServletContainerFactory underTowContainer = (UndertowEmbeddedServletContainerFactory) container;
+            underTowContainer.addBuilderCustomizers(builder -> builder.setServerOption(UndertowOptions.ENABLE_HTTP2, true));
+            String hostAddress = underTowContainer.getAddress() != null ? underTowContainer.getAddress().getHostAddress() : "0.0.0.0";
+            log.info("HostAdress: " + hostAddress);
+            underTowContainer.addBuilderCustomizers(builder -> builder.addHttpListener(80, hostAddress));
+            underTowContainer.addDeploymentInfoCustomizers(deploymentInfo -> {
+                deploymentInfo.addSecurityConstraint(new SecurityConstraint()
+                    .addWebResourceCollection(new WebResourceCollection().addUrlPattern("/*"))
+                    .setTransportGuaranteeType(TransportGuaranteeType.CONFIDENTIAL)
+                    .setEmptyRoleSemantic(SecurityInfo.EmptyRoleSemantic.PERMIT))
+                    .setConfidentialPortManager(exchange -> 443);
+            });
+
+
+
         }
     }
 
